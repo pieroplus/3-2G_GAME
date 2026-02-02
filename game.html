@@ -1,0 +1,2006 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3-2G ブラザーズ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #1a1a1a;
+            font-family: 'Arial', sans-serif;
+        }
+
+        #gameContainer {
+            position: relative;
+        }
+
+        canvas {
+            border: 3px solid #333;
+            display: block;
+            background: linear-gradient(to bottom, #5c9fd8 0%, #8fc9f5 100%);
+        }
+
+        #titleScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+
+        #titleScreen.hidden {
+            display: none;
+        }
+
+        .title-logo {
+            font-size: 72px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 4px 4px 8px rgba(0, 0, 0, 0.5);
+            margin-bottom: 20px;
+            animation: titleBounce 2s ease-in-out infinite;
+        }
+
+        @keyframes titleBounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .title-subtitle {
+            font-size: 24px;
+            color: #ffd700;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            margin-bottom: 50px;
+        }
+
+        .start-btn {
+            padding: 20px 60px;
+            font-size: 28px;
+            background: linear-gradient(to bottom, #4CAF50 0%, #45a049 100%);
+            color: white;
+            border: 4px solid #fff;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+            font-weight: bold;
+        }
+
+        .start-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
+        }
+
+        .start-btn:active {
+            transform: scale(0.95);
+        }
+
+        .title-character {
+            font-size: 48px;
+            margin-top: 30px;
+            animation: characterWalk 1s steps(2) infinite;
+        }
+
+        @keyframes characterWalk {
+            0%, 100% { content: '🚶'; }
+            50% { content: '🚶‍♂️'; }
+        }
+
+        #gameOver, #gameClear {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 40px 60px;
+            border-radius: 15px;
+            text-align: center;
+            display: none;
+            border: 4px solid #fff;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+            z-index: 10;
+        }
+
+        #gameOver h1 {
+            font-size: 48px;
+            color: #ff4444;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        #gameClear h1 {
+            font-size: 48px;
+            color: #44ff44;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .restart-btn {
+            margin-top: 20px;
+            padding: 12px 30px;
+            font-size: 18px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .restart-btn:hover {
+            background-color: #45a049;
+        }
+
+        #instructions {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            max-width: 250px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        #instructions h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        #instructions p {
+            margin: 5px 0;
+            color: #555;
+        }
+
+        #score {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: #ffd700;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="1200" height="600"></canvas>
+
+        <!-- タイトル画面 -->
+        <div id="titleScreen">
+            <div class="title-logo">3-2G ブラザーズ</div>
+            <div class="title-subtitle">～ 冒険の始まり ～</div>
+            <button class="start-btn" onclick="startGame()">スタート</button>
+            <div class="title-character">👤</div>
+        </div>
+
+        <div id="instructions">
+            <h3>操作方法</h3>
+            <p>← → : 移動</p>
+            <p>スペース : ジャンプ</p>
+            <p>・敵を上から踏んで倒そう！</p>
+            <p>・?ブロックからアイテムGET</p>
+            <p>・穴に落ちないように注意！</p>
+            <p>・<strong>ボスに挑戦</strong>して旗に到達！</p>
+        </div>
+
+        <div id="score">
+            スコア: <span id="scoreValue">0</span>
+        </div>
+
+        <div id="gameOver">
+            <h1>GAME OVER</h1>
+            <p id="gameOverReason">やられました</p>
+            <button class="restart-btn" onclick="restartGame()">もう一度プレイ</button>
+        </div>
+
+        <div id="gameClear">
+            <h1>CLEAR!</h1>
+            <p>ステージクリアおめでとう！</p>
+            <p>スコア: <span id="finalScore">0</span></p>
+            <button class="restart-btn" onclick="restartGame()">もう一度プレイ</button>
+        </div>
+    </div>
+
+    <script>
+        // Canvas設定
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // ゲーム定数
+        const GRAVITY = 0.6;
+        const JUMP_POWER = -14;
+        const MOVE_SPEED = 5;
+        const GROUND_Y = canvas.height - 80;
+        const GROUND_HEIGHT = 80;
+
+        // ゲーム状態
+        let gameState = 'title'; // 'title', 'playing', 'falling', 'hit', 'gameOver', 'clear'
+        let gameOverReason = ''; // ゲームオーバーの理由を保存
+        let cameraX = 0; // カメラのX座標（スクロール用）
+        let animationFrame = 0; // アニメーション用フレームカウンター
+        let score = 0; // スコア
+
+        // キー入力管理
+        const keys = {
+            left: false,
+            right: false,
+            space: false
+        };
+
+        // アイテムクラス
+        class Item {
+            constructor(x, y, type) {
+                this.x = x;
+                this.y = y;
+                this.type = type; // 'coin', 'mushroom', 'star'
+                this.width = 30;
+                this.height = 30;
+                this.velocityY = -8; // 出現時の上昇
+                this.velocityX = 0;
+                this.isCollected = false;
+                this.isEmerging = true; // 出現中フラグ
+                this.emergeStartY = y;
+            }
+
+            update() {
+                if (this.isCollected) return;
+
+                if (this.isEmerging) {
+                    // ブロックから出現中
+                    this.y += this.velocityY;
+                    if (this.y <= this.emergeStartY - 40) {
+                        this.isEmerging = false;
+                        this.velocityY = 0;
+                        if (this.type === 'mushroom') {
+                            this.velocityX = 2; // キノコは横に動く
+                        }
+                    }
+                } else {
+                    if (this.type === 'coin') {
+                        // コインは浮遊
+                        this.y += Math.sin(animationFrame * 0.1) * 0.5;
+                    } else if (this.type === 'mushroom') {
+                        // キノコは横移動＋重力
+                        this.x += this.velocityX;
+                        this.velocityY += GRAVITY;
+                        this.y += this.velocityY;
+
+                        // 地面との衝突
+                        if (this.y + this.height >= GROUND_Y) {
+                            this.y = GROUND_Y - this.height;
+                            this.velocityY = 0;
+                        }
+
+                        // 壁で反転
+                        if (this.x < 0 || this.x > 3000) {
+                            this.velocityX *= -1;
+                        }
+                    } else if (this.type === 'star') {
+                        // スターは跳ねる
+                        this.x += this.velocityX;
+                        this.velocityY += GRAVITY;
+                        this.y += this.velocityY;
+
+                        if (this.y + this.height >= GROUND_Y) {
+                            this.y = GROUND_Y - this.height;
+                            this.velocityY = -10;
+                        }
+                    }
+                }
+            }
+
+            draw() {
+                if (this.isCollected) return;
+
+                const screenX = this.x - cameraX;
+
+                if (this.type === 'coin') {
+                    // コイン（金色）
+                    ctx.fillStyle = '#ffd700';
+                    ctx.beginPath();
+                    ctx.arc(screenX + this.width / 2, this.y + this.height / 2, 12, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.strokeStyle = '#ff8c00';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(screenX + this.width / 2, this.y + this.height / 2, 12, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    // 輝き
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath();
+                    ctx.arc(screenX + this.width / 2 - 4, this.y + this.height / 2 - 4, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (this.type === 'mushroom') {
+                    // キノコ（赤と白）
+                    // 傘
+                    ctx.fillStyle = '#e74c3c';
+                    ctx.beginPath();
+                    ctx.arc(screenX + this.width / 2, this.y + 12, 14, Math.PI, 0, false);
+                    ctx.fill();
+
+                    // 白い斑点
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath();
+                    ctx.arc(screenX + this.width / 2 - 6, this.y + 8, 4, 0, Math.PI * 2);
+                    ctx.arc(screenX + this.width / 2 + 6, this.y + 8, 4, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // 柄
+                    ctx.fillStyle = '#ecf0f1';
+                    ctx.fillRect(screenX + this.width / 2 - 6, this.y + 12, 12, 16);
+
+                    // 目
+                    ctx.fillStyle = '#000';
+                    ctx.beginPath();
+                    ctx.arc(screenX + this.width / 2 - 4, this.y + 18, 2, 0, Math.PI * 2);
+                    ctx.arc(screenX + this.width / 2 + 4, this.y + 18, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (this.type === 'star') {
+                    // スター（虹色）
+                    const colors = ['#ff0000', '#ff7f00', '#ffff00', '#00ff00', '#0000ff', '#4b0082', '#9400d3'];
+                    const colorIndex = Math.floor(animationFrame / 5) % colors.length;
+                    ctx.fillStyle = colors[colorIndex];
+
+                    // 星形
+                    ctx.beginPath();
+                    for (let i = 0; i < 5; i++) {
+                        const angle = (i * 4 * Math.PI) / 5 - Math.PI / 2;
+                        const x = screenX + this.width / 2 + Math.cos(angle) * 14;
+                        const y = this.y + this.height / 2 + Math.sin(angle) * 14;
+                        if (i === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            }
+
+            getRect() {
+                return {
+                    x: this.x,
+                    y: this.y,
+                    width: this.width,
+                    height: this.height
+                };
+            }
+
+            collect(player) {
+                this.isCollected = true;
+                if (this.type === 'coin') {
+                    score += 100;
+                } else if (this.type === 'mushroom') {
+                    score += 500;
+                    player.powerUp(); // プレイヤーをパワーアップ
+                } else if (this.type === 'star') {
+                    score += 1000;
+                    // 無敵状態など
+                }
+                updateScore();
+            }
+        }
+
+        // ブロッククラス
+        class Block {
+            constructor(x, y, type = 'brick', itemType = null) {
+                this.x = x;
+                this.y = y;
+                this.width = 40;
+                this.height = 40;
+                this.type = type; // 'brick', 'question', 'stone'
+                this.isHit = false; // ハテナブロックが叩かれたか
+                this.itemType = itemType; // 'coin', 'mushroom', 'star', null
+                this.bounceOffset = 0; // 叩かれた時のバウンド
+            }
+
+            draw() {
+                const screenX = this.x - cameraX;
+                const drawY = this.y + this.bounceOffset;
+
+                if (this.type === 'brick') {
+                    // レンガブロック
+                    ctx.fillStyle = '#c95a27';
+                    ctx.fillRect(screenX, drawY, this.width, this.height);
+
+                    // レンガ模様
+                    ctx.strokeStyle = '#8B4513';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(screenX, drawY, this.width, this.height);
+                    ctx.beginPath();
+                    ctx.moveTo(screenX + this.width / 2, drawY);
+                    ctx.lineTo(screenX + this.width / 2, drawY + this.height);
+                    ctx.stroke();
+                } else if (this.type === 'question') {
+                    // ハテナブロック
+                    if (this.isHit) {
+                        ctx.fillStyle = '#8B7355';
+                    } else {
+                        // アニメーション効果
+                        const brightness = 180 + Math.sin(animationFrame * 0.1) * 20;
+                        ctx.fillStyle = `rgb(${brightness}, ${brightness - 20}, 96)`;
+                    }
+                    ctx.fillRect(screenX, drawY, this.width, this.height);
+
+                    ctx.strokeStyle = '#8B4513';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(screenX, drawY, this.width, this.height);
+
+                    if (!this.isHit) {
+                        // ？マーク（アニメーション）
+                        const offsetY = Math.sin(animationFrame * 0.1) * 2;
+                        ctx.fillStyle = '#fff';
+                        ctx.font = 'bold 28px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText('?', screenX + this.width / 2, drawY + this.height / 2 + offsetY);
+                    }
+                } else if (this.type === 'stone') {
+                    // 石ブロック
+                    ctx.fillStyle = '#888';
+                    ctx.fillRect(screenX, drawY, this.width, this.height);
+
+                    ctx.strokeStyle = '#555';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(screenX, drawY, this.width, this.height);
+                }
+
+                // バウンドアニメーション更新
+                if (this.bounceOffset < 0) {
+                    this.bounceOffset += 2;
+                    if (this.bounceOffset > 0) this.bounceOffset = 0;
+                }
+            }
+
+            hit() {
+                if (this.type === 'question' && !this.isHit) {
+                    this.isHit = true;
+                    this.bounceOffset = -10; // バウンド効果
+
+                    // アイテムを生成
+                    if (this.itemType) {
+                        const item = new Item(this.x + 5, this.y, this.itemType);
+                        items.push(item);
+                    }
+                }
+            }
+
+            getRect() {
+                return {
+                    x: this.x,
+                    y: this.y,
+                    width: this.width,
+                    height: this.height
+                };
+            }
+        }
+
+        // パイプ（ドカン）クラス
+        class Pipe {
+            constructor(x, height = 80) {
+                this.x = x;
+                this.height = height;
+                this.width = 60;
+                this.y = GROUND_Y - this.height;
+            }
+
+            draw() {
+                const screenX = this.x - cameraX;
+
+                // パイプ本体（緑）
+                ctx.fillStyle = '#2ecc71';
+                ctx.fillRect(screenX, this.y, this.width, this.height);
+
+                // パイプの縁取り
+                ctx.strokeStyle = '#27ae60';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(screenX, this.y, this.width, this.height);
+
+                // パイプの口
+                ctx.fillStyle = '#27ae60';
+                ctx.fillRect(screenX - 5, this.y - 10, this.width + 10, 15);
+                ctx.strokeStyle = '#1e8449';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(screenX - 5, this.y - 10, this.width + 10, 15);
+
+                // 影（立体感）
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.fillRect(screenX + this.width / 2, this.y, this.width / 2, this.height);
+
+                // 内側の影
+                ctx.fillStyle = '#000';
+                ctx.fillRect(screenX + 10, this.y - 8, this.width - 20, 10);
+            }
+
+            getRect() {
+                return {
+                    x: this.x,
+                    y: this.y,
+                    width: this.width,
+                    height: this.height
+                };
+            }
+        }
+
+        // 穴クラス
+        class Pit {
+            constructor(x, width) {
+                this.x = x;
+                this.width = width;
+                this.y = GROUND_Y;
+            }
+
+            draw() {
+                const screenX = this.x - cameraX;
+
+                // 穴（黒）
+                ctx.fillStyle = '#000';
+                ctx.fillRect(screenX, this.y, this.width, GROUND_HEIGHT);
+            }
+
+            checkFall(player) {
+                // プレイヤーの70%以上が穴の上にある場合のみ落下
+                const playerLeft = player.x + player.width * 0.15;
+                const playerRight = player.x + player.width * 0.85;
+                return playerLeft > this.x &&
+                       playerRight < this.x + this.width &&
+                       player.y + player.height >= GROUND_Y;
+            }
+        }
+
+        // プレイヤークラス（3-2G文字キャラ）
+        class Player {
+            constructor() {
+                this.normalWidth = 50;
+                this.normalHeight = 40;
+                this.powerWidth = 100;
+                this.powerHeight = 80;
+
+                this.width = this.normalWidth;
+                this.height = this.normalHeight;
+                this.x = 100;
+                this.y = GROUND_Y - this.height;
+                this.velocityX = 0;
+                this.velocityY = 0;
+                this.isJumping = false;
+                this.isOnGround = false;
+                this.direction = 1; // 1: 右向き, -1: 左向き
+                this.isFalling = false; // 穴に落ちているか
+                this.fallRotation = 0; // 落下時の回転
+                this.isPoweredUp = false; // パワーアップ状態
+                this.powerUpAnimation = 0; // パワーアップアニメーション用
+                this.isHit = false; // 敵に当たった状態
+                this.hitKnockbackX = 0; // ノックバック方向
+                this.invincible = false; // 無敵状態
+                this.invincibleTimer = 0; // 無敵時間カウンター
+            }
+
+            update(blocks, pipes) {
+                // 無敵時間の更新
+                if (this.invincibleTimer > 0) {
+                    this.invincibleTimer--;
+                    if (this.invincibleTimer === 0) {
+                        this.invincible = false;
+                    }
+                }
+
+                // パワーアップアニメーション
+                if (this.powerUpAnimation > 0) {
+                    this.powerUpAnimation--;
+                    // アニメーション中はサイズが変化
+                    const progress = (30 - this.powerUpAnimation) / 30;
+                    if (this.isPoweredUp) {
+                        this.width = this.normalWidth + (this.powerWidth - this.normalWidth) * progress;
+                        this.height = this.normalHeight + (this.powerHeight - this.normalHeight) * progress;
+                    } else {
+                        this.width = this.powerWidth - (this.powerWidth - this.normalWidth) * progress;
+                        this.height = this.powerHeight - (this.powerHeight - this.normalHeight) * progress;
+                    }
+                    this.y = GROUND_Y - this.height;
+                }
+
+                if (this.isFalling) {
+                    // 穴に落下中（回転なし、そのまま落ちる）
+                    this.velocityY += GRAVITY * 1.5;
+                    this.y += this.velocityY;
+
+                    // 画面外に出たらゲームオーバー
+                    if (this.y > canvas.height + 100) {
+                        gameState = 'gameOver';
+                        document.getElementById('gameOverReason').textContent = '穴に落ちました';
+                        document.getElementById('gameOver').style.display = 'block';
+                    }
+                    return;
+                }
+
+                if (this.isHit) {
+                    // 敵に当たった時のノックバックアニメーション
+                    this.x += this.hitKnockbackX;
+                    this.velocityY += GRAVITY * 1.5;
+                    this.y += this.velocityY;
+                    this.fallRotation += 0.15;
+                    return;
+                }
+
+                // 左右移動
+                if (keys.left) {
+                    this.velocityX = -MOVE_SPEED;
+                    this.direction = -1;
+                } else if (keys.right) {
+                    this.velocityX = MOVE_SPEED;
+                    this.direction = 1;
+                } else {
+                    this.velocityX = 0;
+                }
+
+                // ジャンプ
+                if (keys.space && this.isOnGround && !this.isJumping) {
+                    this.velocityY = JUMP_POWER;
+                    this.isJumping = true;
+                    this.isOnGround = false;
+                }
+
+                // スペースキーが離されたらジャンプフラグをリセット
+                if (!keys.space) {
+                    this.isJumping = false;
+                }
+
+                // 重力適用
+                this.velocityY += GRAVITY;
+
+                // 位置更新（X軸）
+                this.x += this.velocityX;
+
+                // パイプとの衝突判定（横）
+                pipes.forEach(pipe => {
+                    const pipeRect = pipe.getRect();
+                    const playerRect = this.getRect();
+
+                    if (this.checkCollision(playerRect, pipeRect)) {
+                        if (this.velocityX > 0) {
+                            this.x = pipeRect.x - this.width;
+                        } else if (this.velocityX < 0) {
+                            this.x = pipeRect.x + pipeRect.width;
+                        }
+                    }
+                });
+
+                // ブロックとの衝突判定（横）
+                blocks.forEach(block => {
+                    const blockRect = block.getRect();
+                    const playerRect = this.getRect();
+
+                    if (this.checkCollision(playerRect, blockRect)) {
+                        if (this.velocityX > 0) {
+                            this.x = blockRect.x - this.width;
+                        } else if (this.velocityX < 0) {
+                            this.x = blockRect.x + blockRect.width;
+                        }
+                    }
+                });
+
+                // 画面左端の制限
+                if (this.x < 0) {
+                    this.x = 0;
+                }
+
+                // 位置更新（Y軸）
+                this.y += this.velocityY;
+
+                // 地面との衝突判定
+                this.isOnGround = false;
+                if (this.y + this.height >= GROUND_Y) {
+                    this.y = GROUND_Y - this.height;
+                    this.velocityY = 0;
+                    this.isOnGround = true;
+                }
+
+                // ブロックとの衝突判定（上下）
+                blocks.forEach(block => {
+                    const blockRect = block.getRect();
+                    const playerRect = this.getRect();
+
+                    if (this.checkCollision(playerRect, blockRect)) {
+                        if (this.velocityY > 0) {
+                            // 下に移動中（ブロックの上に着地）
+                            this.y = blockRect.y - this.height;
+                            this.velocityY = 0;
+                            this.isOnGround = true;
+                        } else if (this.velocityY < 0) {
+                            // 上に移動中（ブロックの下に頭をぶつける）
+                            this.y = blockRect.y + blockRect.height;
+                            this.velocityY = 0;
+                            block.hit();
+                        }
+                    }
+                });
+
+                // パイプとの衝突判定（上）
+                pipes.forEach(pipe => {
+                    const pipeRect = pipe.getRect();
+                    const playerRect = this.getRect();
+
+                    if (this.checkCollision(playerRect, pipeRect)) {
+                        if (this.velocityY > 0) {
+                            this.y = pipeRect.y - this.height;
+                            this.velocityY = 0;
+                            this.isOnGround = true;
+                        }
+                    }
+                });
+
+                // カメラ追従（左右両方向に対応）
+                const playerScreenX = this.x - cameraX;
+                const centerX = canvas.width / 2;
+                const deadZone = 100; // カメラが動き始めるまでの範囲
+
+                // プレイヤーが画面中央より右にいる場合
+                if (playerScreenX > centerX + deadZone) {
+                    cameraX = this.x - centerX - deadZone;
+                }
+                // プレイヤーが画面中央より左にいる場合
+                else if (playerScreenX < centerX - deadZone) {
+                    cameraX = this.x - centerX + deadZone;
+                }
+
+                // カメラの左端制限
+                if (cameraX < 0) {
+                    cameraX = 0;
+                }
+            }
+
+            draw() {
+                const screenX = this.x - cameraX;
+
+                // 無敵中は点滅させる
+                if (this.invincible && Math.floor(this.invincibleTimer / 5) % 2 === 0) {
+                    return; // 点滅のため描画をスキップ
+                }
+
+                ctx.save();
+
+                // アニメーション用
+                const walkCycle = Math.sin(animationFrame * 0.3);
+                const legOffset = this.velocityX !== 0 ? walkCycle * 3 : 0;
+                const armSwing = this.velocityX !== 0 ? walkCycle * 4 : 0;
+                const isJumpPose = !this.isOnGround;
+
+                // サイズに応じたスケール
+                const scale = this.width / this.normalWidth;
+                const baseY = this.y + this.height;
+
+                // === 「3-2G」縦書き文字本体 ===
+                // 文字を縦に配置
+                const chars = ['3', '-', '2', 'G'];
+                const charHeight = this.height / chars.length;
+                const fontSize = Math.floor(charHeight * 0.9); // より大きく
+                ctx.font = `bold ${fontSize}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+
+                // 各文字を描画
+                chars.forEach((char, index) => {
+                    const charY = this.y + charHeight * index + charHeight / 2;
+
+                    // 文字の影（より濃く）
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                    ctx.fillText(char, screenX + this.width / 2 + 3 * scale, charY + 3 * scale);
+
+                    // 文字のアウトライン（より太く、濃い色）
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 6 * scale;
+                    ctx.lineJoin = 'round';
+                    ctx.strokeText(char, screenX + this.width / 2, charY);
+
+                    // 文字本体（より明るい色）
+                    ctx.fillStyle = '#FFD700'; // 金色で目立つように
+                    ctx.fillText(char, screenX + this.width / 2, charY);
+                });
+
+                // === 足（シンプル） ===
+                const legWidth = 4 * scale;
+                const legHeight = 6 * scale; // 8→6に短縮
+                const footSize = 6 * scale;
+                const legStartY = baseY - legHeight; // 足を体の内側から描画
+
+                ctx.fillStyle = '#2c3e50';
+
+                if (isJumpPose) {
+                    // ジャンプ時：足を揃える
+                    ctx.fillRect(screenX + this.width * 0.35, legStartY, legWidth, legHeight);
+                    ctx.fillRect(screenX + this.width * 0.6, legStartY, legWidth, legHeight);
+
+                    // 靴
+                    ctx.fillStyle = '#e74c3c';
+                    ctx.fillRect(screenX + this.width * 0.35 - 2, baseY, footSize, 2 * scale);
+                    ctx.fillRect(screenX + this.width * 0.6 - 2, baseY, footSize, 2 * scale);
+                } else {
+                    // 歩行時：足を動かす
+                    ctx.fillRect(screenX + this.width * 0.35, legStartY + legOffset, legWidth, legHeight);
+                    ctx.fillRect(screenX + this.width * 0.6, legStartY - legOffset, legWidth, legHeight);
+
+                    // 靴
+                    ctx.fillStyle = '#e74c3c';
+                    ctx.fillRect(screenX + this.width * 0.35 - 2, baseY + legOffset, footSize, 2 * scale);
+                    ctx.fillRect(screenX + this.width * 0.6 - 2, baseY - legOffset, footSize, 2 * scale);
+                }
+
+
+                ctx.restore();
+            }
+
+            startFalling() {
+                this.isFalling = true;
+                this.velocityY = -8; // 少し上に跳ねる
+            }
+
+            startHitAnimation(enemyX) {
+                this.isHit = true;
+                this.velocityY = -10; // 上に跳ねる
+                // 敵の位置に応じてノックバック方向を決定
+                this.hitKnockbackX = this.x < enemyX ? -3 : 3;
+            }
+
+            powerUp() {
+                if (!this.isPoweredUp) {
+                    this.isPoweredUp = true;
+                    this.powerUpAnimation = 30; // 30フレームでアニメーション
+                }
+            }
+
+            powerDown() {
+                if (this.isPoweredUp) {
+                    this.isPoweredUp = false;
+                    this.powerUpAnimation = 30;
+                    this.invincible = true;
+                    this.invincibleTimer = 120; // 2秒間無敵（60fps x 2）
+                }
+            }
+
+            getRect() {
+                return {
+                    x: this.x,
+                    y: this.y,
+                    width: this.width,
+                    height: this.height
+                };
+            }
+
+            checkCollision(rect1, rect2) {
+                return rect1.x < rect2.x + rect2.width &&
+                       rect1.x + rect1.width > rect2.x &&
+                       rect1.y < rect2.y + rect2.height &&
+                       rect1.y + rect1.height > rect2.y;
+            }
+        }
+
+        // ボスクラス
+        class Boss {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.width = 80;
+                this.height = 80;
+                this.velocityX = -3;
+                this.velocityY = 0;
+                this.isAlive = true;
+                this.maxHp = 5;
+                this.hp = this.maxHp;
+                this.isJumping = false;
+                this.jumpTimer = 0;
+                this.hitFlash = 0; // ダメージ点滅用
+            }
+
+            update(blocks, pipes, pits) {
+                if (!this.isAlive) return;
+
+                // 穴の手前でチェック
+                let nearPit = false;
+                if (pits) {
+                    pits.forEach(pit => {
+                        const checkDistance = 50;
+                        if (this.velocityX > 0) {
+                            if (this.x + this.width + checkDistance > pit.x && this.x < pit.x) {
+                                nearPit = true;
+                            }
+                        } else {
+                            if (this.x - checkDistance < pit.x + pit.width && this.x > pit.x + pit.width) {
+                                nearPit = true;
+                            }
+                        }
+                    });
+                }
+
+                if (nearPit) {
+                    this.velocityX *= -1;
+                }
+
+                // 左右移動
+                this.x += this.velocityX;
+
+                // ジャンプ（定期的に）
+                this.jumpTimer++;
+                if (this.jumpTimer > 120 && !this.isJumping) {
+                    this.velocityY = -12;
+                    this.isJumping = true;
+                    this.jumpTimer = 0;
+                }
+
+                // 重力
+                this.velocityY += GRAVITY;
+                this.y += this.velocityY;
+
+                // 地面との衝突
+                if (this.y + this.height >= GROUND_Y) {
+                    this.y = GROUND_Y - this.height;
+                    this.velocityY = 0;
+                    this.isJumping = false;
+                }
+
+                // ブロックとの衝突
+                blocks.forEach(block => {
+                    const blockRect = block.getRect();
+                    const bossRect = this.getRect();
+                    if (this.checkCollision(bossRect, blockRect)) {
+                        if (this.y + this.height <= blockRect.y + 10) {
+                            this.y = blockRect.y - this.height;
+                            this.velocityY = 0;
+                            this.isJumping = false;
+                        } else {
+                            this.velocityX *= -1;
+                        }
+                    }
+                });
+
+                // パイプとの衝突
+                pipes.forEach(pipe => {
+                    const pipeRect = pipe.getRect();
+                    const bossRect = this.getRect();
+                    if (this.checkCollision(bossRect, pipeRect)) {
+                        this.velocityX *= -1;
+                    }
+                });
+
+                // 移動範囲制限（ゴール周辺）
+                if (this.x < 4000 || this.x > 4400) {
+                    this.velocityX *= -1;
+                }
+
+                // ダメージ点滅
+                if (this.hitFlash > 0) {
+                    this.hitFlash--;
+                }
+            }
+
+            draw() {
+                if (!this.isAlive) return;
+
+                const screenX = this.x - cameraX;
+                const walkFrame = Math.floor(animationFrame / 10) % 2;
+
+                // ダメージ点滅
+                if (this.hitFlash > 0 && Math.floor(this.hitFlash / 5) % 2 === 0) {
+                    return; // 点滅させるために一時的に非表示
+                }
+
+                // 影
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.beginPath();
+                ctx.ellipse(screenX + this.width / 2, GROUND_Y + 2, this.width / 2, 8, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 体（巨大なきのこモンスター）
+                // 体の部分
+                ctx.fillStyle = '#8B0000'; // ダークレッド
+                ctx.beginPath();
+                ctx.ellipse(screenX + this.width / 2, this.y + 40, 35, 30, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 傘の部分（赤と黒のドット）
+                ctx.fillStyle = '#DC143C'; // クリムゾン
+                ctx.beginPath();
+                ctx.arc(screenX + 15, this.y + 15, 8, 0, Math.PI * 2);
+                ctx.arc(screenX + 40, this.y + 10, 10, 0, Math.PI * 2);
+                ctx.arc(screenX + 65, this.y + 15, 8, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 王冠
+                ctx.fillStyle = '#FFD700';
+                ctx.beginPath();
+                ctx.moveTo(screenX + 20, this.y - 5);
+                ctx.lineTo(screenX + 25, this.y - 15);
+                ctx.lineTo(screenX + 30, this.y - 8);
+                ctx.lineTo(screenX + 35, this.y - 15);
+                ctx.lineTo(screenX + 40, this.y - 8);
+                ctx.lineTo(screenX + 45, this.y - 15);
+                ctx.lineTo(screenX + 50, this.y - 8);
+                ctx.lineTo(screenX + 55, this.y - 15);
+                ctx.lineTo(screenX + 60, this.y - 5);
+                ctx.closePath();
+                ctx.fill();
+
+                // 王冠の宝石
+                ctx.fillStyle = '#FF0000';
+                ctx.beginPath();
+                ctx.arc(screenX + 25, this.y - 12, 3, 0, Math.PI * 2);
+                ctx.arc(screenX + 40, this.y - 12, 3, 0, Math.PI * 2);
+                ctx.arc(screenX + 55, this.y - 12, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 目（大きく威圧的）
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(screenX + 25, this.y + 35, 10, 0, Math.PI * 2);
+                ctx.arc(screenX + 55, this.y + 35, 10, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 黒目（怒った表情）
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.arc(screenX + 26, this.y + 37, 6, 0, Math.PI * 2);
+                ctx.arc(screenX + 56, this.y + 37, 6, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 眉毛（怒り）
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(screenX + 15, this.y + 25);
+                ctx.lineTo(screenX + 30, this.y + 30);
+                ctx.moveTo(screenX + 65, this.y + 25);
+                ctx.lineTo(screenX + 50, this.y + 30);
+                ctx.stroke();
+
+                // 口（大きく開いた）
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.ellipse(screenX + this.width / 2, this.y + 55, 15, 10, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 牙
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.moveTo(screenX + 30, this.y + 50);
+                ctx.lineTo(screenX + 25, this.y + 60);
+                ctx.lineTo(screenX + 35, this.y + 55);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.moveTo(screenX + 50, this.y + 50);
+                ctx.lineTo(screenX + 55, this.y + 60);
+                ctx.lineTo(screenX + 45, this.y + 55);
+                ctx.closePath();
+                ctx.fill();
+
+                // 足（歩行アニメーション）
+                ctx.fillStyle = '#654321';
+                const footOffset = walkFrame === 0 ? 0 : 5;
+                ctx.fillRect(screenX + 20 - footOffset, this.y + 70, 15, 10);
+                ctx.fillRect(screenX + 45 + footOffset, this.y + 70, 15, 10);
+
+                // HPバー
+                const barWidth = this.width;
+                const barHeight = 8;
+                const barX = screenX;
+                const barY = this.y - 20;
+
+                // HPバー背景
+                ctx.fillStyle = '#333';
+                ctx.fillRect(barX, barY, barWidth, barHeight);
+
+                // HP（現在値）
+                const hpRatio = this.hp / this.maxHp;
+                ctx.fillStyle = hpRatio > 0.5 ? '#2ecc71' : hpRatio > 0.2 ? '#f39c12' : '#e74c3c';
+                ctx.fillRect(barX, barY, barWidth * hpRatio, barHeight);
+
+                // HPバー枠
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(barX, barY, barWidth, barHeight);
+
+                // 「BOSS」の文字
+                ctx.fillStyle = '#FFD700';
+                ctx.font = 'bold 12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('BOSS', screenX + this.width / 2, barY - 5);
+            }
+
+            takeDamage() {
+                this.hp--;
+                this.hitFlash = 20; // 20フレーム点滅
+                if (this.hp <= 0) {
+                    this.isAlive = false;
+                }
+            }
+
+            getRect() {
+                return {
+                    x: this.x,
+                    y: this.y,
+                    width: this.width,
+                    height: this.height
+                };
+            }
+
+            checkCollision(rect1, rect2) {
+                return rect1.x < rect2.x + rect2.width &&
+                       rect1.x + rect1.width > rect2.x &&
+                       rect1.y < rect2.y + rect2.height &&
+                       rect1.y + rect1.height > rect2.y;
+            }
+        }
+
+        // 敵クラス（リアル版）
+        class Enemy {
+            constructor(x, y, type) {
+                this.type = type;
+                this.x = x;
+                this.y = y;
+                this.width = 40;
+                this.height = 40;
+                this.velocityX = -1.5; // スピードを遅く
+                this.isAlive = true;
+                this.state = 'walking';
+                this.shellVelocity = 0;
+            }
+
+            update(blocks, pipes, pits) {
+                if (!this.isAlive) return;
+
+                if (this.type === 'goomba') {
+                    // 穴とパイプの手前でチェック（進行方向）
+                    let shouldTurn = false;
+
+                    // 穴チェック
+                    if (pits) {
+                        pits.forEach(pit => {
+                            const checkDistance = 30;
+                            if (this.velocityX > 0) {
+                                if (this.x + this.width + checkDistance > pit.x &&
+                                    this.x < pit.x) {
+                                    shouldTurn = true;
+                                }
+                            } else {
+                                if (this.x - checkDistance < pit.x + pit.width &&
+                                    this.x > pit.x + pit.width) {
+                                    shouldTurn = true;
+                                }
+                            }
+                        });
+                    }
+
+                    // パイプチェック（接近前に方向転換）
+                    if (pipes) {
+                        pipes.forEach(pipe => {
+                            const pipeRect = pipe.getRect();
+                            const checkDistance = 50;
+                            if (this.velocityX > 0) {
+                                // 右に進んでいる場合、パイプの左側でチェック
+                                if (this.x + this.width + checkDistance > pipeRect.x &&
+                                    this.x < pipeRect.x) {
+                                    shouldTurn = true;
+                                }
+                            } else {
+                                // 左に進んでいる場合、パイプの右側でチェック
+                                if (this.x - checkDistance < pipeRect.x + pipeRect.width &&
+                                    this.x > pipeRect.x + pipeRect.width) {
+                                    shouldTurn = true;
+                                }
+                            }
+                        });
+                    }
+
+                    // 方向転換
+                    if (shouldTurn) {
+                        this.velocityX *= -1;
+                    }
+
+                    this.x += this.velocityX;
+
+                    let onGround = false;
+                    if (this.y + this.height < GROUND_Y) {
+                        this.y += GRAVITY;
+                    } else {
+                        this.y = GROUND_Y - this.height;
+                        onGround = true;
+                    }
+
+                    blocks.forEach(block => {
+                        const blockRect = block.getRect();
+                        const enemyRect = this.getRect();
+                        if (this.checkCollision(enemyRect, blockRect)) {
+                            if (this.y + this.height <= blockRect.y + 10) {
+                                this.y = blockRect.y - this.height;
+                                onGround = true;
+                            } else {
+                                this.velocityX *= -1;
+                            }
+                        }
+                    });
+
+                    pipes.forEach(pipe => {
+                        const pipeRect = pipe.getRect();
+                        const enemyRect = this.getRect();
+                        if (this.checkCollision(enemyRect, pipeRect)) {
+                            this.velocityX *= -1;
+                        }
+                    });
+
+                    if (this.x < 0 || this.x > 3000) {
+                        this.velocityX *= -1;
+                    }
+                }
+
+                if (this.type === 'koopa') {
+                    if (this.state === 'walking') {
+                        // 穴とパイプの手前でチェック
+                        let shouldTurn = false;
+
+                        // 穴チェック
+                        if (pits) {
+                            pits.forEach(pit => {
+                                const checkDistance = 30;
+                                if (this.velocityX > 0) {
+                                    if (this.x + this.width + checkDistance > pit.x &&
+                                        this.x < pit.x) {
+                                        shouldTurn = true;
+                                    }
+                                } else {
+                                    if (this.x - checkDistance < pit.x + pit.width &&
+                                        this.x > pit.x + pit.width) {
+                                        shouldTurn = true;
+                                    }
+                                }
+                            });
+                        }
+
+                        // パイプチェック
+                        if (pipes) {
+                            pipes.forEach(pipe => {
+                                const pipeRect = pipe.getRect();
+                                const checkDistance = 50;
+                                if (this.velocityX > 0) {
+                                    if (this.x + this.width + checkDistance > pipeRect.x &&
+                                        this.x < pipeRect.x) {
+                                        shouldTurn = true;
+                                    }
+                                } else {
+                                    if (this.x - checkDistance < pipeRect.x + pipeRect.width &&
+                                        this.x > pipeRect.x + pipeRect.width) {
+                                        shouldTurn = true;
+                                    }
+                                }
+                            });
+                        }
+
+                        // 方向転換
+                        if (shouldTurn) {
+                            this.velocityX *= -1;
+                        }
+
+                        this.x += this.velocityX;
+
+                        if (this.y + this.height < GROUND_Y) {
+                            this.y += GRAVITY;
+                        } else {
+                            this.y = GROUND_Y - this.height;
+                        }
+
+                        blocks.forEach(block => {
+                            const blockRect = block.getRect();
+                            const enemyRect = this.getRect();
+                            if (this.checkCollision(enemyRect, blockRect)) {
+                                if (this.y + this.height <= blockRect.y + 10) {
+                                    this.y = blockRect.y - this.height;
+                                } else {
+                                    this.velocityX *= -1;
+                                }
+                            }
+                        });
+
+                        pipes.forEach(pipe => {
+                            const pipeRect = pipe.getRect();
+                            const enemyRect = this.getRect();
+                            if (this.checkCollision(enemyRect, pipeRect)) {
+                                this.velocityX *= -1;
+                            }
+                        });
+
+                        if (this.x < 0 || this.x > 3000) {
+                            this.velocityX *= -1;
+                        }
+                    } else if (this.state === 'shell') {
+                        this.height = 30;
+                        this.y = GROUND_Y - this.height;
+                    } else if (this.state === 'shellMoving') {
+                        this.x += this.shellVelocity;
+                        this.height = 30;
+
+                        // 穴に落ちたかチェック（甲羅を消す）
+                        if (pits) {
+                            pits.forEach(pit => {
+                                if (this.x + this.width / 2 > pit.x &&
+                                    this.x + this.width / 2 < pit.x + pit.width &&
+                                    this.y + this.height >= GROUND_Y) {
+                                    this.isAlive = false; // 甲羅を消す
+                                }
+                            });
+                        }
+
+                        // パイプに当たったら跳ね返る
+                        pipes.forEach(pipe => {
+                            const pipeRect = pipe.getRect();
+                            const enemyRect = this.getRect();
+                            if (this.checkCollision(enemyRect, pipeRect)) {
+                                // 跳ね返る
+                                this.shellVelocity *= -1;
+                                // パイプから離す（めり込み防止）
+                                if (this.shellVelocity > 0) {
+                                    this.x = pipeRect.x + pipeRect.width + 2;
+                                } else {
+                                    this.x = pipeRect.x - this.width - 2;
+                                }
+                            }
+                        });
+                    }
+                }
+            }
+
+            draw() {
+                if (!this.isAlive) return;
+
+                const screenX = this.x - cameraX;
+                const walkFrame = Math.floor(animationFrame / 10) % 2;
+
+                if (this.type === 'goomba') {
+                    ctx.fillStyle = '#8B4513';
+                    ctx.beginPath();
+                    ctx.ellipse(screenX + this.width / 2, this.y + 20, 18, 16, 0, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#A0522D';
+                    ctx.beginPath();
+                    ctx.arc(screenX + 10, this.y + 8, 4, 0, Math.PI * 2);
+                    ctx.arc(screenX + 30, this.y + 8, 4, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath();
+                    ctx.arc(screenX + 12, this.y + 18, 6, 0, Math.PI * 2);
+                    ctx.arc(screenX + 28, this.y + 18, 6, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#000';
+                    ctx.beginPath();
+                    ctx.arc(screenX + 13, this.y + 19, 3, 0, Math.PI * 2);
+                    ctx.arc(screenX + 29, this.y + 19, 3, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(screenX + 8, this.y + 14);
+                    ctx.lineTo(screenX + 16, this.y + 16);
+                    ctx.moveTo(screenX + 32, this.y + 14);
+                    ctx.lineTo(screenX + 24, this.y + 16);
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#654321';
+                    const footOffset = walkFrame === 0 ? 0 : 3;
+                    ctx.fillRect(screenX + 10 - footOffset, this.y + 36, 8, 4);
+                    ctx.fillRect(screenX + 22 + footOffset, this.y + 36, 8, 4);
+                }
+
+                if (this.type === 'koopa') {
+                    if (this.state === 'walking') {
+                        ctx.fillStyle = '#2ecc71';
+                        ctx.beginPath();
+                        ctx.ellipse(screenX + 20, this.y + 15, 18, 14, 0, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        ctx.strokeStyle = '#27ae60';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.arc(screenX + 20, this.y + 15, 14, 0, Math.PI * 2);
+                        ctx.stroke();
+
+                        ctx.beginPath();
+                        ctx.moveTo(screenX + 20, this.y + 8);
+                        ctx.lineTo(screenX + 20, this.y + 22);
+                        ctx.moveTo(screenX + 12, this.y + 15);
+                        ctx.lineTo(screenX + 28, this.y + 15);
+                        ctx.stroke();
+
+                        ctx.fillStyle = '#f39c12';
+                        ctx.beginPath();
+                        const headDir = this.velocityX > 0 ? -8 : 8;
+                        ctx.arc(screenX + 20 + headDir, this.y + 8, 8, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        ctx.fillStyle = '#fff';
+                        ctx.beginPath();
+                        ctx.arc(screenX + 20 + headDir - 2, this.y + 7, 3, 0, Math.PI * 2);
+                        ctx.arc(screenX + 20 + headDir + 2, this.y + 7, 3, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        ctx.fillStyle = '#000';
+                        ctx.beginPath();
+                        ctx.arc(screenX + 20 + headDir - 2, this.y + 7, 1.5, 0, Math.PI * 2);
+                        ctx.arc(screenX + 20 + headDir + 2, this.y + 7, 1.5, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        ctx.fillStyle = '#e67e22';
+                        const footOffset = walkFrame === 0 ? 0 : 4;
+                        ctx.fillRect(screenX + 8 - footOffset, this.y + 28, 10, 12);
+                        ctx.fillRect(screenX + 22 + footOffset, this.y + 28, 10, 12);
+
+                        ctx.strokeStyle = '#f39c12';
+                        ctx.lineWidth = 3;
+                        ctx.beginPath();
+                        const tailDir = this.velocityX > 0 ? 1 : -1;
+                        ctx.moveTo(screenX + 20 - tailDir * 18, this.y + 20);
+                        ctx.lineTo(screenX + 20 - tailDir * 24, this.y + 18);
+                        ctx.stroke();
+                    } else {
+                        // 甲羅状態（亀の甲羅風）
+                        const shellCenterX = screenX + this.width / 2;
+                        const shellCenterY = this.y + this.height / 2;
+                        const shellRadius = this.width / 2;
+
+                        // 甲羅の影
+                        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                        ctx.beginPath();
+                        ctx.ellipse(shellCenterX, shellCenterY + 2, shellRadius, shellRadius * 0.8, 0, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // 甲羅本体（楕円形）
+                        ctx.fillStyle = '#2ecc71';
+                        ctx.beginPath();
+                        ctx.ellipse(shellCenterX, shellCenterY, shellRadius, shellRadius * 0.8, 0, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // 甲羅の縁取り
+                        ctx.strokeStyle = '#27ae60';
+                        ctx.lineWidth = 3;
+                        ctx.beginPath();
+                        ctx.ellipse(shellCenterX, shellCenterY, shellRadius, shellRadius * 0.8, 0, 0, Math.PI * 2);
+                        ctx.stroke();
+
+                        // 甲羅の模様（六角形パターン）
+                        ctx.strokeStyle = '#1e8449';
+                        ctx.lineWidth = 2;
+
+                        // 中央の六角形
+                        ctx.beginPath();
+                        for (let i = 0; i < 6; i++) {
+                            const angle = (i * Math.PI) / 3;
+                            const x = shellCenterX + Math.cos(angle) * 8;
+                            const y = shellCenterY + Math.sin(angle) * 6;
+                            if (i === 0) ctx.moveTo(x, y);
+                            else ctx.lineTo(x, y);
+                        }
+                        ctx.closePath();
+                        ctx.stroke();
+
+                        // 中央から放射状の線
+                        for (let i = 0; i < 6; i++) {
+                            const angle = (i * Math.PI) / 3;
+                            ctx.beginPath();
+                            ctx.moveTo(shellCenterX, shellCenterY);
+                            ctx.lineTo(
+                                shellCenterX + Math.cos(angle) * shellRadius * 0.7,
+                                shellCenterY + Math.sin(angle) * shellRadius * 0.7 * 0.8
+                            );
+                            ctx.stroke();
+                        }
+
+                        // ハイライト（立体感）
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                        ctx.beginPath();
+                        ctx.ellipse(shellCenterX - 5, shellCenterY - 5, 8, 6, 0, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // 動いている場合は回転エフェクト
+                        if (this.state === 'shellMoving') {
+                            const spinAngle = (animationFrame * 0.5) % (Math.PI * 2);
+                            ctx.save();
+                            ctx.translate(shellCenterX, shellCenterY);
+                            ctx.rotate(spinAngle);
+
+                            // 回転線
+                            ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+                            ctx.lineWidth = 2;
+                            ctx.beginPath();
+                            ctx.moveTo(-shellRadius * 0.5, 0);
+                            ctx.lineTo(shellRadius * 0.5, 0);
+                            ctx.stroke();
+
+                            ctx.restore();
+                        }
+                    }
+                }
+            }
+
+            stomp() {
+                if (this.type === 'goomba') {
+                    this.isAlive = false;
+                    score += 200;
+                    updateScore();
+                } else if (this.type === 'koopa') {
+                    if (this.state === 'walking') {
+                        this.state = 'shell';
+                        this.velocityX = 0;
+                        this.y = GROUND_Y - 30;
+                        score += 300;
+                        updateScore();
+                    }
+                }
+            }
+
+            kickShell(direction) {
+                if (this.type === 'koopa' && this.state === 'shell') {
+                    this.state = 'shellMoving';
+                    this.shellVelocity = direction > 0 ? 12 : -12;
+                }
+            }
+
+            getRect() {
+                return {
+                    x: this.x,
+                    y: this.y,
+                    width: this.width,
+                    height: this.height
+                };
+            }
+
+            checkCollision(rect1, rect2) {
+                return rect1.x < rect2.x + rect2.width &&
+                       rect1.x + rect1.width > rect2.x &&
+                       rect1.y < rect2.y + rect2.height &&
+                       rect1.y + rect1.height > rect2.y;
+            }
+        }
+
+        // ゴール（旗）クラス
+        class Goal {
+            constructor(x) {
+                this.x = x;
+                this.y = GROUND_Y - 180;
+                this.width = 20;
+                this.height = 180;
+                this.flagWidth = 60;
+                this.flagHeight = 50;
+            }
+
+            draw() {
+                const screenX = this.x - cameraX;
+
+                ctx.fillStyle = '#666';
+                ctx.fillRect(screenX, this.y, this.width, this.height);
+
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.fillRect(screenX + this.width / 2, this.y, this.width / 2, this.height);
+
+                const flagY = this.y + Math.sin(animationFrame * 0.1) * 5;
+                ctx.fillStyle = '#e74c3c';
+                ctx.beginPath();
+                ctx.moveTo(screenX + this.width, flagY);
+                ctx.lineTo(screenX + this.width + this.flagWidth, flagY + this.flagHeight / 2);
+                ctx.lineTo(screenX + this.width, flagY + this.flagHeight);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.strokeStyle = '#c0392b';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(screenX + this.width, flagY);
+                ctx.lineTo(screenX + this.width + this.flagWidth, flagY + this.flagHeight / 2);
+                ctx.lineTo(screenX + this.width, flagY + this.flagHeight);
+                ctx.closePath();
+                ctx.stroke();
+
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('★', screenX + this.width + this.flagWidth / 2, flagY + this.flagHeight / 2 + 8);
+            }
+
+            checkCollision(player) {
+                return player.x + player.width >= this.x &&
+                       player.x <= this.x + this.width + this.flagWidth;
+            }
+        }
+
+        // 当たり判定関数
+        function checkCollision(rect1, rect2) {
+            return rect1.x < rect2.x + rect2.width &&
+                   rect1.x + rect1.width > rect2.x &&
+                   rect1.y < rect2.y + rect2.height &&
+                   rect1.y + rect1.height > rect2.y;
+        }
+
+        // スコア更新
+        function updateScore() {
+            document.getElementById('scoreValue').textContent = score;
+        }
+
+        // ゲームオブジェクト
+        let player;
+        let enemies;
+        let blocks;
+        let pipes;
+        let pits;
+        let goal;
+        let items;
+        let boss;
+
+        function initGame() {
+            player = new Player();
+            score = 0;
+            updateScore();
+
+            // ブロックの配置（必要最小限に調整）
+            blocks = [
+                new Block(300, GROUND_Y - 120, 'question', 'coin'),
+                new Block(380, GROUND_Y - 120, 'question', 'mushroom'),
+
+                new Block(1050, GROUND_Y - 120, 'question', 'coin'),
+
+                new Block(1380, GROUND_Y - 120, 'question', 'star'),
+
+                new Block(2400, GROUND_Y - 120, 'question', 'mushroom'),
+
+                new Block(2950, GROUND_Y - 200, 'question', 'star'),
+
+                new Block(3640, GROUND_Y - 120, 'question', 'coin'),
+
+                new Block(4180, GROUND_Y - 150, 'question', 'mushroom')
+            ];
+
+            pipes = [
+                new Pipe(620, 60),
+                new Pipe(970, 80),
+                new Pipe(1580, 100),
+                new Pipe(1900, 80),
+                // 追加パイプ
+                new Pipe(2600, 70),
+                new Pipe(3100, 90),
+                new Pipe(3650, 80), // 3500→3650 (穴3450-3570を避ける)
+                new Pipe(4150, 100) // 3900→4150 (穴4000-4100を避ける)
+            ];
+
+            pits = [
+                new Pit(1200, 120),
+                new Pit(1800, 80),
+                new Pit(2300, 100),
+                // 追加穴
+                new Pit(2850, 100),
+                new Pit(3450, 120),
+                new Pit(4000, 100)
+            ];
+
+            enemies = [
+                new Enemy(450, GROUND_Y - 40, 'goomba'),
+                new Enemy(750, GROUND_Y - 40, 'koopa'),  // パイプ620から離す
+                new Enemy(1100, GROUND_Y - 40, 'goomba'), // パイプ970から離す
+                new Enemy(1350, GROUND_Y - 40, 'goomba'),
+                new Enemy(1750, GROUND_Y - 40, 'koopa'),  // パイプ1580と1900の間
+                new Enemy(2050, GROUND_Y - 40, 'goomba'), // パイプ1900の後
+                new Enemy(2400, GROUND_Y - 40, 'koopa'),  // パイプ2600の手前
+                new Enemy(2750, GROUND_Y - 40, 'goomba'), // パイプ2600の後、穴2850の手前
+                new Enemy(2950, GROUND_Y - 40, 'koopa'),  // 穴2850の後、パイプ3100の手前
+                new Enemy(3250, GROUND_Y - 40, 'goomba'), // パイプ3100の後、穴3450の手前
+                new Enemy(3800, GROUND_Y - 40, 'koopa'),  // 穴3450の後、パイプ3650の後
+                new Enemy(4300, GROUND_Y - 40, 'goomba')  // パイプ4150の後
+            ];
+
+            items = [];
+
+            // ボス（ゴール手前）
+            boss = new Boss(4200, GROUND_Y - 80);
+
+            goal = new Goal(4500);
+
+            gameState = 'playing';
+            cameraX = 0;
+            animationFrame = 0;
+
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('gameClear').style.display = 'none';
+        }
+
+        // ゲームループ
+        function gameLoop() {
+            animationFrame++;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // タイトル画面でない場合のみゲーム画面を描画
+            if (gameState !== 'title') {
+                // 背景装飾（雲）
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                drawCloud(200 - (cameraX * 0.2) % 400, 80);
+                drawCloud(500 - (cameraX * 0.2) % 400, 120);
+                drawCloud(800 - (cameraX * 0.2) % 400, 60);
+
+                // 地面描画
+                ctx.fillStyle = '#8B4513';
+                ctx.fillRect(0, GROUND_Y, canvas.width, GROUND_HEIGHT);
+
+                ctx.fillStyle = '#27ae60';
+                ctx.fillRect(0, GROUND_Y, canvas.width, 8);
+
+                ctx.fillStyle = '#654321';
+                for (let i = 0; i < canvas.width; i += 40) {
+                    ctx.fillRect(i, GROUND_Y + 20, 20, 20);
+                }
+
+                pits.forEach(pit => pit.draw());
+                pipes.forEach(pipe => pipe.draw());
+                blocks.forEach(block => block.draw());
+
+                // アイテムの更新と描画
+                items.forEach(item => {
+                    item.update();
+                    item.draw();
+                });
+            }
+
+            if (gameState === 'playing' || gameState === 'falling' || gameState === 'hit') {
+                player.update(blocks, pipes);
+
+                // ヒットアニメーション中にゲームオーバーをチェック
+                if (gameState === 'hit' && player.y > canvas.height + 100) {
+                    gameState = 'gameOver';
+                    document.getElementById('gameOverReason').textContent = gameOverReason;
+                    document.getElementById('gameOver').style.display = 'block';
+                }
+
+                // ヒット状態でない場合のみ衝突判定を行う
+                if (gameState !== 'hit') {
+                    // アイテムとの衝突判定
+                    items.forEach(item => {
+                        if (!item.isCollected) {
+                            const playerRect = player.getRect();
+                            const itemRect = item.getRect();
+                            if (checkCollision(playerRect, itemRect)) {
+                                item.collect(player);
+                            }
+                        }
+                    });
+
+                    // 穴に落ちたかチェック
+                    if (!player.isFalling) {
+                        pits.forEach(pit => {
+                            if (pit.checkFall(player)) {
+                                gameState = 'falling';
+                                player.startFalling();
+                            }
+                        });
+                    }
+                }
+
+                // ボス更新
+                if (boss) {
+                    boss.update(blocks, pipes, pits);
+
+                    if (gameState !== 'hit' && boss.isAlive) {
+                        const playerRect = player.getRect();
+                        const bossRect = boss.getRect();
+
+                        // ボスの当たり判定も少し小さくする
+                        const bossHitbox = {
+                            x: bossRect.x + 8,
+                            y: bossRect.y + 8,
+                            width: bossRect.width - 16,
+                            height: bossRect.height - 16
+                        };
+
+                        if (checkCollision(playerRect, bossHitbox)) {
+                            // ボスの踏みつけ判定を優しく（上部50%まで）
+                            const isStompingFromAbove =
+                                player.velocityY > 0 &&
+                                playerRect.y + playerRect.height < bossRect.y + bossRect.height * 0.5;
+
+                            if (isStompingFromAbove) {
+                                // ボスにダメージ
+                                boss.takeDamage();
+                                player.velocityY = JUMP_POWER / 2;
+                                score += 500;
+                                updateScore();
+                            } else {
+                                // プレイヤーがダメージを受ける（無敵中でない場合のみ）
+                                if (!player.invincible) {
+                                    if (player.isPoweredUp) {
+                                        player.powerDown();
+                                    } else {
+                                        gameState = 'hit';
+                                        gameOverReason = 'ボスにやられました';
+                                        player.startHitAnimation(boss.x + boss.width / 2);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 敵更新
+                enemies.forEach(enemy => {
+                    enemy.update(blocks, pipes, pits);
+                });
+
+                // 動いている甲羅と他の敵の衝突判定
+                enemies.forEach((shell, shellIndex) => {
+                    if (!shell.isAlive || shell.type !== 'koopa' || shell.state !== 'shellMoving') return;
+
+                    const shellRect = shell.getRect();
+
+                    enemies.forEach((enemy, enemyIndex) => {
+                        if (shellIndex === enemyIndex || !enemy.isAlive) return;
+
+                        const enemyRect = enemy.getRect();
+                        if (checkCollision(shellRect, enemyRect)) {
+                            // 甲羅が他の敵を倒す
+                            enemy.isAlive = false;
+                            score += 200;
+                            updateScore();
+                        }
+                    });
+                });
+
+                // プレイヤーと敵の衝突判定
+                enemies.forEach(enemy => {
+                    if (!enemy.isAlive || gameState === 'hit') return;
+
+                    const playerRect = player.getRect();
+                    const enemyRect = enemy.getRect();
+
+                    // 当たり判定を少し小さくして余裕を持たせる
+                    const enemyHitbox = {
+                        x: enemyRect.x + 5,
+                        y: enemyRect.y + 5,
+                        width: enemyRect.width - 10,
+                        height: enemyRect.height - 10
+                    };
+
+                    if (checkCollision(playerRect, enemyHitbox)) {
+                        // 踏みつけ判定を優しく（敵の上部60%まで）
+                        const isStompingFromAbove =
+                            player.velocityY > 0 &&
+                            playerRect.y + playerRect.height - 15 < enemyRect.y + enemyRect.height * 0.6;
+
+                        if (isStompingFromAbove) {
+                            enemy.stomp();
+                            player.velocityY = JUMP_POWER / 2;
+                        } else {
+                            if (enemy.type === 'koopa' && enemy.state === 'shell') {
+                                const direction = player.x < enemy.x ? 1 : -1;
+                                enemy.kickShell(direction);
+                            } else if (enemy.type === 'koopa' && enemy.state === 'shellMoving') {
+                                // 動いている甲羅に当たった場合（無敵中でない場合のみ）
+                                if (!player.invincible) {
+                                    if (player.isPoweredUp) {
+                                        player.powerDown(); // パワーダウン
+                                    } else {
+                                        gameState = 'hit';
+                                        gameOverReason = '甲羅に当たりました';
+                                        player.startHitAnimation(enemy.x + enemy.width / 2);
+                                    }
+                                }
+                            } else if (enemy.state === 'walking' || enemy.type === 'goomba') {
+                                // 通常の敵に横から当たった場合（無敵中でない場合のみ）
+                                if (!player.invincible) {
+                                    if (player.isPoweredUp) {
+                                        player.powerDown(); // パワーダウン
+                                    } else {
+                                        gameState = 'hit';
+                                        gameOverReason = '敵に当たりました';
+                                        player.startHitAnimation(enemy.x + enemy.width / 2);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // ゴール判定
+                if (goal.checkCollision(player)) {
+                    gameState = 'clear';
+                    document.getElementById('finalScore').textContent = score;
+                    document.getElementById('gameClear').style.display = 'block';
+                }
+            }
+
+            // 描画（ゲームが開始されている場合のみ）
+            if (gameState !== 'title') {
+                player.draw();
+                enemies.forEach(enemy => enemy.draw());
+                if (boss) boss.draw();
+                goal.draw();
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // 雲を描画
+        function drawCloud(x, y) {
+            ctx.beginPath();
+            ctx.arc(x, y, 20, 0, Math.PI * 2);
+            ctx.arc(x + 25, y, 25, 0, Math.PI * 2);
+            ctx.arc(x + 50, y, 20, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // キーボードイベント
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') {
+                keys.left = true;
+            }
+            if (e.key === 'ArrowRight') {
+                keys.right = true;
+            }
+            if (e.key === ' ' || e.key === 'Spacebar') {
+                keys.space = true;
+                e.preventDefault();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft') {
+                keys.left = false;
+            }
+            if (e.key === 'ArrowRight') {
+                keys.right = false;
+            }
+            if (e.key === ' ' || e.key === 'Spacebar') {
+                keys.space = false;
+            }
+        });
+
+        // スタート関数
+        function startGame() {
+            document.getElementById('titleScreen').classList.add('hidden');
+            initGame();
+        }
+
+        // リスタート関数
+        function restartGame() {
+            document.getElementById('titleScreen').classList.remove('hidden');
+            gameState = 'title';
+            document.getElementById('gameOver').style.display = 'none';
+            document.getElementById('gameClear').style.display = 'none';
+        }
+
+        // ゲーム開始
+        gameLoop();
+    </script>
+</body>
+</html>
