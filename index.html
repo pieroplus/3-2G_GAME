@@ -313,6 +313,20 @@
             body {
                 min-height: 100vh;
                 min-height: -webkit-fill-available;
+                align-items: flex-start;
+                padding-top: 20px;
+            }
+
+            #gameContainer {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: flex-start;
+                margin-top: 0;
+            }
+
+            canvas {
+                margin-top: 0 !important;
             }
 
             #instructions {
@@ -361,6 +375,28 @@
         @media screen and (max-width: 768px) and (orientation: landscape) {
             #orientationWarning {
                 display: none;
+            }
+
+            body {
+                padding-top: 5px;
+            }
+
+            #gameContainer {
+                justify-content: flex-start;
+            }
+
+            #mobileControls {
+                height: 160px;
+            }
+
+            .dpad-container {
+                bottom: 10px;
+                left: 10px;
+            }
+
+            .jump-button {
+                bottom: 20px;
+                right: 20px;
             }
         }
 
@@ -505,10 +541,20 @@
                 newHeight = newWidth / canvasRatio;
             }
 
-            // モバイルの場合は少し小さくしてコントロールスペースを確保
+            // モバイルの場合はコントロールスペースを確保
             if (isTouchDevice && window.innerWidth <= 768) {
-                newHeight = Math.min(newHeight, windowHeight - 220);
+                // 横画面か縦画面かで調整
+                const isLandscape = window.innerWidth > window.innerHeight;
+                const controlSpace = isLandscape ? 180 : 200;
+
+                newHeight = Math.min(newHeight, windowHeight - controlSpace);
                 newWidth = newHeight * canvasRatio;
+
+                // 横画面の場合は画面いっぱいに
+                if (isLandscape) {
+                    newWidth = Math.min(newWidth, windowWidth - 20);
+                    newHeight = newWidth / canvasRatio;
+                }
             }
 
             canvas.style.width = newWidth + 'px';
@@ -939,8 +985,11 @@
             draw() {
                 const screenX = this.x - cameraX;
 
-                // 穴（黒）
-                ctx.fillStyle = '#000';
+                // 穴（空の色と同じグラデーション）
+                const gradient = ctx.createLinearGradient(0, this.y, 0, this.y + GROUND_HEIGHT);
+                gradient.addColorStop(0, '#5c9fd8');
+                gradient.addColorStop(1, '#8fc9f5');
+                ctx.fillStyle = gradient;
                 ctx.fillRect(screenX, this.y, this.width, GROUND_HEIGHT);
             }
 
