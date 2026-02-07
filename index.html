@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>3-2G ブラザーズ</title>
     <style>
         * {
@@ -181,6 +181,195 @@
             font-size: 18px;
             font-weight: bold;
         }
+
+        /* レスポンシブCanvas設定 */
+        #gameContainer {
+            position: relative;
+            max-width: 100%;
+            max-height: 100vh;
+        }
+
+        canvas {
+            max-width: 100%;
+            max-height: 100vh;
+            width: auto;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+        }
+
+        /* モバイルコントロール */
+        #mobileControls {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            height: 200px;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        #mobileControls.active {
+            display: block;
+        }
+
+        .control-button {
+            pointer-events: auto;
+            position: absolute;
+            background: rgba(255, 255, 255, 0.4);
+            border: 3px solid rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+            transition: all 0.1s ease;
+        }
+
+        .control-button:active {
+            background: rgba(255, 255, 255, 0.7);
+            transform: scale(0.95);
+        }
+
+        /* D-pad コンテナ */
+        .dpad-container {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 180px;
+            height: 180px;
+            display: grid;
+            grid-template-columns: repeat(3, 60px);
+            grid-template-rows: repeat(3, 60px);
+            gap: 0;
+        }
+
+        .dpad-left {
+            grid-column: 1;
+            grid-row: 2;
+            width: 70px;
+            height: 70px;
+            font-size: 32px;
+        }
+
+        .dpad-right {
+            grid-column: 3;
+            grid-row: 2;
+            width: 70px;
+            height: 70px;
+            font-size: 32px;
+        }
+
+        /* ジャンプボタン */
+        .jump-button {
+            bottom: 40px;
+            right: 40px;
+            width: 90px;
+            height: 90px;
+            font-size: 16px;
+            background: rgba(76, 175, 80, 0.5);
+            border-color: rgba(76, 175, 80, 0.8);
+        }
+
+        .jump-button:active {
+            background: rgba(76, 175, 80, 0.8);
+        }
+
+        /* 横画面推奨メッセージ */
+        #orientationWarning {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            z-index: 2000;
+            max-width: 80%;
+        }
+
+        #orientationWarning h2 {
+            margin-bottom: 15px;
+            font-size: 24px;
+        }
+
+        #orientationWarning p {
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        /* メディアクエリ */
+        @media screen and (max-width: 768px) {
+            body {
+                min-height: 100vh;
+                min-height: -webkit-fill-available;
+            }
+
+            #instructions {
+                font-size: 12px;
+                padding: 10px;
+                max-width: 200px;
+            }
+
+            #score {
+                font-size: 16px;
+                padding: 8px 15px;
+            }
+        }
+
+        /* 縦画面の場合 */
+        @media screen and (max-width: 768px) and (orientation: portrait) {
+            #orientationWarning {
+                display: block;
+            }
+
+            .dpad-container {
+                bottom: 15px;
+                left: 15px;
+                width: 150px;
+                height: 150px;
+                grid-template-columns: repeat(3, 50px);
+                grid-template-rows: repeat(3, 50px);
+            }
+
+            .dpad-left, .dpad-right {
+                width: 60px;
+                height: 60px;
+                font-size: 28px;
+            }
+
+            .jump-button {
+                bottom: 30px;
+                right: 30px;
+                width: 80px;
+                height: 80px;
+                font-size: 14px;
+            }
+        }
+
+        /* 横画面の場合 */
+        @media screen and (max-width: 768px) and (orientation: landscape) {
+            #orientationWarning {
+                display: none;
+            }
+        }
+
+        /* タッチデバイス以外では非表示 */
+        @media (hover: hover) and (pointer: fine) {
+            #mobileControls {
+                display: none !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -221,6 +410,21 @@
             <p>スコア: <span id="finalScore">0</span></p>
             <button class="restart-btn" onclick="restartGame()">もう一度プレイ</button>
         </div>
+
+        <!-- モバイルコントロール -->
+        <div id="mobileControls">
+            <div class="dpad-container">
+                <div class="control-button dpad-left" data-key="left">◁</div>
+                <div class="control-button dpad-right" data-key="right">▷</div>
+            </div>
+            <div class="control-button jump-button" data-key="jump">JUMP</div>
+        </div>
+
+        <!-- 横画面推奨メッセージ -->
+        <div id="orientationWarning">
+            <h2>📱 横画面推奨</h2>
+            <p>より快適にプレイするには<br>デバイスを横向きにしてください</p>
+        </div>
     </div>
 
     <script>
@@ -248,6 +452,168 @@
             right: false,
             space: false
         };
+
+        // モバイル対応変数
+        let isTouchDevice = false;
+        let canvasScale = 1;
+        let touchState = {
+            left: { active: false, touchId: null },
+            right: { active: false, touchId: null },
+            jump: { active: false, touchId: null }
+        };
+
+        // タッチデバイス検出
+        function detectTouchDevice() {
+            return ('ontouchstart' in window) ||
+                   (navigator.maxTouchPoints > 0) ||
+                   (navigator.msMaxTouchPoints > 0);
+        }
+
+        // Canvas拡大率を計算して適用
+        function updateCanvasScale() {
+            const container = document.getElementById('gameContainer');
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight;
+
+            // キャンバスのアスペクト比を維持（2:1）
+            const canvasRatio = canvas.width / canvas.height;
+            const windowRatio = windowWidth / windowHeight;
+
+            let newWidth, newHeight;
+
+            if (windowRatio > canvasRatio) {
+                // ウィンドウの方が横長
+                newHeight = windowHeight;
+                newWidth = newHeight * canvasRatio;
+            } else {
+                // ウィンドウの方が縦長
+                newWidth = windowWidth;
+                newHeight = newWidth / canvasRatio;
+            }
+
+            // モバイルの場合は少し小さくしてコントロールスペースを確保
+            if (isTouchDevice && window.innerWidth <= 768) {
+                newHeight = Math.min(newHeight, windowHeight - 220);
+                newWidth = newHeight * canvasRatio;
+            }
+
+            canvas.style.width = newWidth + 'px';
+            canvas.style.height = newHeight + 'px';
+
+            canvasScale = newWidth / canvas.width;
+        }
+
+        // モバイルコントロールの初期化
+        function initMobileControls() {
+            isTouchDevice = detectTouchDevice();
+
+            if (isTouchDevice) {
+                const mobileControls = document.getElementById('mobileControls');
+                mobileControls.classList.add('active');
+                setupTouchControls();
+
+                // 画面スクロール防止
+                document.body.style.overflow = 'hidden';
+                document.body.style.position = 'fixed';
+                document.body.style.width = '100%';
+                document.body.style.height = '100%';
+
+                // タッチムーブでスクロール防止
+                document.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                }, { passive: false });
+            }
+
+            updateCanvasScale();
+        }
+
+        // タッチコントロール設定
+        function setupTouchControls() {
+            const leftBtn = document.querySelector('.dpad-left');
+            const rightBtn = document.querySelector('.dpad-right');
+            const jumpBtn = document.querySelector('.jump-button');
+
+            // コンテキストメニュー無効化
+            [leftBtn, rightBtn, jumpBtn].forEach(btn => {
+                btn.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                });
+            });
+
+            // 左ボタン
+            setupButton(leftBtn, 'left');
+
+            // 右ボタン
+            setupButton(rightBtn, 'right');
+
+            // ジャンプボタン
+            setupButton(jumpBtn, 'jump');
+        }
+
+        function setupButton(button, keyType) {
+            // タッチ開始
+            button.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+
+                const touch = e.changedTouches[0];
+                touchState[keyType].active = true;
+                touchState[keyType].touchId = touch.identifier;
+
+                // keys オブジェクトを更新
+                if (keyType === 'left') {
+                    keys.left = true;
+                } else if (keyType === 'right') {
+                    keys.right = true;
+                } else if (keyType === 'jump') {
+                    keys.space = true;
+                }
+
+                // 触覚フィードバック
+                if (navigator.vibrate) {
+                    navigator.vibrate(10);
+                }
+            }, { passive: false });
+
+            // タッチ終了
+            button.addEventListener('touchend', (e) => {
+                e.preventDefault();
+
+                const touch = e.changedTouches[0];
+                if (touchState[keyType].touchId === touch.identifier) {
+                    touchState[keyType].active = false;
+                    touchState[keyType].touchId = null;
+
+                    // keys オブジェクトを更新
+                    if (keyType === 'left') {
+                        keys.left = false;
+                    } else if (keyType === 'right') {
+                        keys.right = false;
+                    } else if (keyType === 'jump') {
+                        keys.space = false;
+                    }
+                }
+            }, { passive: false });
+
+            // タッチキャンセル
+            button.addEventListener('touchcancel', (e) => {
+                e.preventDefault();
+
+                const touch = e.changedTouches[0];
+                if (touchState[keyType].touchId === touch.identifier) {
+                    touchState[keyType].active = false;
+                    touchState[keyType].touchId = null;
+
+                    // keys オブジェクトを更新
+                    if (keyType === 'left') {
+                        keys.left = false;
+                    } else if (keyType === 'right') {
+                        keys.right = false;
+                    } else if (keyType === 'jump') {
+                        keys.space = false;
+                    }
+                }
+            }, { passive: false });
+        }
 
         // アイテムクラス
         class Item {
@@ -1989,6 +2355,11 @@
         function startGame() {
             document.getElementById('titleScreen').classList.add('hidden');
             initGame();
+
+            // 初回起動時にモバイルコントロール初期化
+            if (!isTouchDevice) {
+                initMobileControls();
+            }
         }
 
         // リスタート関数
@@ -1998,6 +2369,26 @@
             document.getElementById('gameOver').style.display = 'none';
             document.getElementById('gameClear').style.display = 'none';
         }
+
+        // 画面リサイズとオリエンテーション変更に対応
+        window.addEventListener('resize', () => {
+            if (isTouchDevice) {
+                updateCanvasScale();
+            }
+        });
+
+        window.addEventListener('orientationchange', () => {
+            if (isTouchDevice) {
+                setTimeout(() => {
+                    updateCanvasScale();
+                }, 100);
+            }
+        });
+
+        // ページ読み込み時の初期化
+        window.addEventListener('load', () => {
+            initMobileControls();
+        });
 
         // ゲーム開始
         gameLoop();
