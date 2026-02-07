@@ -370,6 +370,20 @@
                 display: none !important;
             }
         }
+
+        /* モバイルでは操作説明を非表示 */
+        @media screen and (max-width: 768px) {
+            #instructions {
+                display: none;
+            }
+        }
+
+        /* タッチデバイスでは操作説明を非表示 */
+        @media (hover: none) and (pointer: coarse) {
+            #instructions {
+                display: none;
+            }
+        }
     </style>
 </head>
 <body>
