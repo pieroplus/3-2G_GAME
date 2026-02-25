@@ -282,32 +282,6 @@
             background: rgba(76, 175, 80, 0.8);
         }
 
-        /* 横画面推奨メッセージ */
-        #orientationWarning {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.9);
-            color: white;
-            padding: 30px;
-            border-radius: 10px;
-            text-align: center;
-            z-index: 2000;
-            max-width: 80%;
-        }
-
-        #orientationWarning h2 {
-            margin-bottom: 15px;
-            font-size: 24px;
-        }
-
-        #orientationWarning p {
-            font-size: 16px;
-            line-height: 1.5;
-        }
-
         /* メディアクエリ */
         @media screen and (max-width: 768px) {
             body {
@@ -343,10 +317,6 @@
 
         /* 縦画面の場合 */
         @media screen and (max-width: 768px) and (orientation: portrait) {
-            #orientationWarning {
-                display: block;
-            }
-
             .dpad-container {
                 bottom: 15px;
                 left: 15px;
@@ -373,10 +343,6 @@
 
         /* 横画面の場合 */
         @media screen and (max-width: 768px) and (orientation: landscape) {
-            #orientationWarning {
-                display: none;
-            }
-
             body {
                 padding-top: 5px;
             }
@@ -431,6 +397,7 @@
             <div class="title-logo">3-2G ブラザーズ</div>
             <div class="title-subtitle">～ 冒険の始まり ～</div>
             <button class="start-btn" onclick="startGame()">スタート</button>
+            <button id="bossModeBtn" class="start-btn" onclick="startBossModeFromTitle()" style="display: none; background: linear-gradient(to bottom, #e74c3c 0%, #c0392b 100%); margin-top: 20px; font-size: 24px;">🔥 ボスモード 🔥</button>
             <div class="title-character">👤</div>
         </div>
 
@@ -458,6 +425,7 @@
             <h1>CLEAR!</h1>
             <p>ステージクリアおめでとう！</p>
             <p>スコア: <span id="finalScore">0</span></p>
+            <button class="restart-btn" onclick="startBossMode()" style="background: linear-gradient(to bottom, #e74c3c 0%, #c0392b 100%); margin-bottom: 10px;">🔥 ボスモードに挑戦 🔥</button>
             <button class="restart-btn" onclick="restartGame()">もう一度プレイ</button>
         </div>
 
@@ -468,12 +436,6 @@
                 <div class="control-button dpad-right" data-key="right">▷</div>
             </div>
             <div class="control-button jump-button" data-key="jump">JUMP</div>
-        </div>
-
-        <!-- 横画面推奨メッセージ -->
-        <div id="orientationWarning">
-            <h2>📱 横画面推奨</h2>
-            <p>より快適にプレイするには<br>デバイスを横向きにしてください</p>
         </div>
     </div>
 
@@ -985,11 +947,15 @@
             draw() {
                 const screenX = this.x - cameraX;
 
-                // 穴（空の色と同じグラデーション）
-                const gradient = ctx.createLinearGradient(0, this.y, 0, this.y + GROUND_HEIGHT);
-                gradient.addColorStop(0, '#5c9fd8');
-                gradient.addColorStop(1, '#8fc9f5');
-                ctx.fillStyle = gradient;
+                // 穴（周囲の空の色に合わせる）
+                // GROUND_Yの位置での空の色を計算（グラデーションの下側の色）
+                // 空は上が #5c9fd8、下が #8fc9f5 のグラデーション
+                // GROUND_Y位置での色を使用
+                const skyProgress = this.y / canvas.height;
+                const r = Math.floor(92 + (143 - 92) * skyProgress);
+                const g = Math.floor(157 + (201 - 157) * skyProgress);
+                const b = Math.floor(216 + (245 - 216) * skyProgress);
+                ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
                 ctx.fillRect(screenX, this.y, this.width, GROUND_HEIGHT);
             }
 
@@ -1106,10 +1072,10 @@
                 // 位置更新（X軸）
                 this.x += this.velocityX;
 
-                // パイプとの衝突判定（横）
+                // パイプとの衝突判定（横）- より厳密な判定
                 pipes.forEach(pipe => {
                     const pipeRect = pipe.getRect();
-                    const playerRect = this.getRect();
+                    const playerRect = this.getCollisionRect();
 
                     if (this.checkCollision(playerRect, pipeRect)) {
                         if (this.velocityX > 0) {
@@ -1120,10 +1086,10 @@
                     }
                 });
 
-                // ブロックとの衝突判定（横）
+                // ブロックとの衝突判定（横）- より厳密な判定
                 blocks.forEach(block => {
                     const blockRect = block.getRect();
-                    const playerRect = this.getRect();
+                    const playerRect = this.getCollisionRect();
 
                     if (this.checkCollision(playerRect, blockRect)) {
                         if (this.velocityX > 0) {
@@ -1150,17 +1116,22 @@
                     this.isOnGround = true;
                 }
 
-                // ブロックとの衝突判定（上下）
+                // ブロックとの衝突判定（上下）- より厳密な判定
                 blocks.forEach(block => {
                     const blockRect = block.getRect();
-                    const playerRect = this.getRect();
+                    const playerRect = this.getCollisionRect();
+                    const playerBottom = this.y + this.height;
 
                     if (this.checkCollision(playerRect, blockRect)) {
                         if (this.velocityY > 0) {
                             // 下に移動中（ブロックの上に着地）
-                            this.y = blockRect.y - this.height;
-                            this.velocityY = 0;
-                            this.isOnGround = true;
+                            // 前のフレームでプレイヤーの底面がブロックの上面より上にあった場合のみ着地処理
+                            const prevBottom = playerBottom - this.velocityY;
+                            if (prevBottom <= blockRect.y + 5) {
+                                this.y = blockRect.y - this.height;
+                                this.velocityY = 0;
+                                this.isOnGround = true;
+                            }
                         } else if (this.velocityY < 0) {
                             // 上に移動中（ブロックの下に頭をぶつける）
                             this.y = blockRect.y + blockRect.height;
@@ -1170,16 +1141,22 @@
                     }
                 });
 
-                // パイプとの衝突判定（上）
+                // パイプとの衝突判定（上）- より厳密な判定
                 pipes.forEach(pipe => {
                     const pipeRect = pipe.getRect();
-                    const playerRect = this.getRect();
+                    const playerRect = this.getCollisionRect();
+                    const playerBottom = this.y + this.height;
 
                     if (this.checkCollision(playerRect, pipeRect)) {
                         if (this.velocityY > 0) {
-                            this.y = pipeRect.y - this.height;
-                            this.velocityY = 0;
-                            this.isOnGround = true;
+                            // 下に移動中（パイプの上に着地）
+                            // 前のフレームでプレイヤーの底面がパイプの上面より上にあった場合のみ着地処理
+                            const prevBottom = playerBottom - this.velocityY;
+                            if (prevBottom <= pipeRect.y + 5) {
+                                this.y = pipeRect.y - this.height;
+                                this.velocityY = 0;
+                                this.isOnGround = true;
+                            }
                         }
                     }
                 });
@@ -1318,6 +1295,18 @@
                     y: this.y,
                     width: this.width,
                     height: this.height
+                };
+            }
+
+            // ブロック・パイプとの衝突判定用の矩形（より厳密）
+            getCollisionRect() {
+                const marginX = 6;  // 左右に6pxずつマージン（より近づける）
+                const marginY = 4;  // 上下に4pxずつマージン
+                return {
+                    x: this.x + marginX,
+                    y: this.y + marginY,
+                    width: this.width - marginX * 2,
+                    height: this.height - marginY * 2
                 };
             }
 
@@ -2090,73 +2079,108 @@
         let goal;
         let items;
         let boss;
+        let bosses; // ボスモード用（複数ボス）
+        let isBossMode = false; // ボスモードフラグ
+        let hasUnlockedBossMode = false; // ボスモードアンロック状態
 
-        function initGame() {
+        function initGame(mode = 'normal') {
             player = new Player();
             score = 0;
             updateScore();
 
-            // ブロックの配置（必要最小限に調整）
-            blocks = [
-                new Block(300, GROUND_Y - 120, 'question', 'coin'),
-                new Block(380, GROUND_Y - 120, 'question', 'mushroom'),
+            isBossMode = (mode === 'boss');
 
-                new Block(1050, GROUND_Y - 120, 'question', 'coin'),
+            if (isBossMode) {
+                // ボスモード：シンプルなステージに3体のボス
+                blocks = [
+                    new Block(500, GROUND_Y - 160, 'question', 'mushroom'),
+                    new Block(1000, GROUND_Y - 160, 'question', 'star'),
+                    new Block(1500, GROUND_Y - 160, 'question', 'mushroom'),
+                ];
 
-                new Block(1380, GROUND_Y - 120, 'question', 'star'),
+                pipes = [
+                    new Pipe(800, 80),
+                    new Pipe(2200, 80),
+                ];
 
-                new Block(2400, GROUND_Y - 120, 'question', 'mushroom'),
+                pits = [
+                    new Pit(1300, 100),
+                ];
 
-                new Block(2950, GROUND_Y - 200, 'question', 'star'),
+                enemies = []; // 通常敵なし
 
-                new Block(3640, GROUND_Y - 120, 'question', 'coin'),
+                items = [];
 
-                new Block(4180, GROUND_Y - 150, 'question', 'mushroom')
-            ];
+                // 3体のボス配置
+                bosses = [
+                    new Boss(1000, GROUND_Y - 80),
+                    new Boss(1600, GROUND_Y - 80),
+                    new Boss(2400, GROUND_Y - 80)
+                ];
 
-            pipes = [
-                new Pipe(620, 60),
-                new Pipe(970, 80),
-                new Pipe(1580, 100),
-                new Pipe(1900, 80),
-                // 追加パイプ
-                new Pipe(2600, 70),
-                new Pipe(3100, 90),
-                new Pipe(3650, 80), // 3500→3650 (穴3450-3570を避ける)
-                new Pipe(4150, 100) // 3900→4150 (穴4000-4100を避ける)
-            ];
+                boss = null;
 
-            pits = [
-                new Pit(1200, 120),
-                new Pit(1800, 80),
-                new Pit(2300, 100),
-                // 追加穴
-                new Pit(2850, 100),
-                new Pit(3450, 120),
-                new Pit(4000, 100)
-            ];
+                goal = new Goal(3000);
+            } else {
+                // 通常モード
+                blocks = [
+                    new Block(300, GROUND_Y - 160, 'question', 'coin'),
+                    new Block(380, GROUND_Y - 160, 'question', 'mushroom'),
 
-            enemies = [
-                new Enemy(450, GROUND_Y - 40, 'goomba'),
-                new Enemy(750, GROUND_Y - 40, 'koopa'),  // パイプ620から離す
-                new Enemy(1100, GROUND_Y - 40, 'goomba'), // パイプ970から離す
-                new Enemy(1350, GROUND_Y - 40, 'goomba'),
-                new Enemy(1750, GROUND_Y - 40, 'koopa'),  // パイプ1580と1900の間
-                new Enemy(2050, GROUND_Y - 40, 'goomba'), // パイプ1900の後
-                new Enemy(2400, GROUND_Y - 40, 'koopa'),  // パイプ2600の手前
-                new Enemy(2750, GROUND_Y - 40, 'goomba'), // パイプ2600の後、穴2850の手前
-                new Enemy(2950, GROUND_Y - 40, 'koopa'),  // 穴2850の後、パイプ3100の手前
-                new Enemy(3250, GROUND_Y - 40, 'goomba'), // パイプ3100の後、穴3450の手前
-                new Enemy(3800, GROUND_Y - 40, 'koopa'),  // 穴3450の後、パイプ3650の後
-                new Enemy(4300, GROUND_Y - 40, 'goomba')  // パイプ4150の後
-            ];
+                    new Block(1050, GROUND_Y - 160, 'question', 'coin'),
 
-            items = [];
+                    new Block(1380, GROUND_Y - 180, 'question', 'star'),
 
-            // ボス（ゴール手前）
-            boss = new Boss(4200, GROUND_Y - 80);
+                    new Block(2400, GROUND_Y - 160, 'question', 'mushroom'),
 
-            goal = new Goal(4500);
+                    new Block(2950, GROUND_Y - 240, 'question', 'star'),
+
+                    new Block(3350, GROUND_Y - 160, 'question', 'coin'),
+
+                    new Block(3900, GROUND_Y - 180, 'question', 'mushroom')
+                ];
+
+                pipes = [
+                    new Pipe(620, 60),
+                    new Pipe(970, 80),
+                    new Pipe(1580, 100),
+                    new Pipe(1900, 80),
+                    new Pipe(2600, 70),
+                    new Pipe(3100, 90),
+                    new Pipe(3650, 80),  // そのまま
+                    new Pipe(4150, 100)  // そのまま
+                ];
+
+                pits = [
+                    new Pit(1200, 120),
+                    new Pit(1800, 80),
+                    new Pit(2300, 100),
+                    new Pit(2850, 100),
+                    new Pit(3450, 120),
+                    new Pit(4000, 100)
+                ];
+
+                enemies = [
+                    new Enemy(450, GROUND_Y - 40, 'goomba'),   // パイプ620の手前
+                    new Enemy(800, GROUND_Y - 40, 'koopa'),    // パイプ620と970の間
+                    new Enemy(1100, GROUND_Y - 40, 'goomba'),  // パイプ970の後
+                    new Enemy(1450, GROUND_Y - 40, 'goomba'),  // パイプ1580の手前
+                    new Enemy(1750, GROUND_Y - 40, 'koopa'),   // パイプ1580と1900の間
+                    new Enemy(2100, GROUND_Y - 40, 'goomba'),  // パイプ1900の後
+                    new Enemy(2500, GROUND_Y - 40, 'koopa'),   // パイプ2600の手前
+                    new Enemy(2900, GROUND_Y - 40, 'goomba'),  // 穴2850の後、パイプ3100の手前
+                    new Enemy(3250, GROUND_Y - 40, 'koopa'),   // パイプ3100の後、穴3450の手前
+                    new Enemy(3750, GROUND_Y - 40, 'goomba'),  // 穴3450の後、パイプ3650の後
+                    new Enemy(3950, GROUND_Y - 40, 'koopa')    // 穴4000の手前（ボスより前に配置）
+                ];
+
+                items = [];
+
+                boss = new Boss(4200, GROUND_Y - 80);
+                bosses = [];
+
+                goal = new Goal(4500);
+            }
 
             gameState = 'playing';
             cameraX = 0;
@@ -2237,7 +2261,7 @@
                     }
                 }
 
-                // ボス更新
+                // ボス更新（通常モード）
                 if (boss) {
                     boss.update(blocks, pipes, pits);
 
@@ -2278,6 +2302,53 @@
                                 }
                             }
                         }
+                    }
+                }
+
+                // ボスモード：複数ボス更新
+                if (isBossMode && bosses) {
+                    bosses.forEach(currentBoss => {
+                        currentBoss.update(blocks, pipes, pits);
+
+                        if (gameState !== 'hit' && currentBoss.isAlive) {
+                            const playerRect = player.getRect();
+                            const bossRect = currentBoss.getRect();
+
+                            const bossHitbox = {
+                                x: bossRect.x + 8,
+                                y: bossRect.y + 8,
+                                width: bossRect.width - 16,
+                                height: bossRect.height - 16
+                            };
+
+                            if (checkCollision(playerRect, bossHitbox)) {
+                                const isStompingFromAbove =
+                                    player.velocityY > 0 &&
+                                    playerRect.y + playerRect.height < bossRect.y + bossRect.height * 0.5;
+
+                                if (isStompingFromAbove) {
+                                    currentBoss.takeDamage();
+                                    player.velocityY = JUMP_POWER / 2;
+                                    score += 500;
+                                    updateScore();
+                                } else {
+                                    if (!player.invincible) {
+                                        if (player.isPoweredUp) {
+                                            player.powerDown();
+                                        } else {
+                                            gameState = 'hit';
+                                            gameOverReason = 'ボスにやられました';
+                                            player.startHitAnimation(currentBoss.x + currentBoss.width / 2);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+
+                    // 全てのボスを倒したかチェック
+                    if (bosses.every(b => !b.isAlive)) {
+                        // ゴール判定を有効化（次のフレームでクリア可能）
                     }
                 }
 
@@ -2362,9 +2433,30 @@
 
                 // ゴール判定
                 if (goal.checkCollision(player)) {
-                    gameState = 'clear';
-                    document.getElementById('finalScore').textContent = score;
-                    document.getElementById('gameClear').style.display = 'block';
+                    // ボスモードの場合、全ボスを倒さないとクリアできない
+                    if (isBossMode && bosses && !bosses.every(b => !b.isAlive)) {
+                        // まだボスが残っている場合はゴールできない（プレイヤーを押し戻す）
+                        player.x = goal.x - player.width - 10;
+                    } else {
+                        gameState = 'clear';
+                        document.getElementById('finalScore').textContent = score;
+
+                        // ボスモードクリア時のメッセージを変更
+                        if (isBossMode) {
+                            document.querySelector('#gameClear h1').textContent = '🏆 BOSS MODE CLEAR! 🏆';
+                            document.querySelector('#gameClear p').textContent = '3体のボスを全て倒しました！';
+                        } else {
+                            document.querySelector('#gameClear h1').textContent = 'CLEAR!';
+                            document.querySelector('#gameClear p').textContent = 'ステージクリアおめでとう！';
+                            // 通常モードクリア時にボスモードをアンロック
+                            if (!hasUnlockedBossMode) {
+                                hasUnlockedBossMode = true;
+                                document.getElementById('bossModeBtn').style.display = 'inline-block';
+                            }
+                        }
+
+                        document.getElementById('gameClear').style.display = 'block';
+                    }
                 }
             }
 
@@ -2373,6 +2465,9 @@
                 player.draw();
                 enemies.forEach(enemy => enemy.draw());
                 if (boss) boss.draw();
+                if (isBossMode && bosses) {
+                    bosses.forEach(b => b.draw());
+                }
                 goal.draw();
             }
 
@@ -2417,7 +2512,24 @@
         // スタート関数
         function startGame() {
             document.getElementById('titleScreen').classList.add('hidden');
-            initGame();
+            initGame('normal');
+
+            // 初回起動時にモバイルコントロール初期化
+            if (!isTouchDevice) {
+                initMobileControls();
+            }
+        }
+
+        // ボスモードスタート関数（クリア画面から）
+        function startBossMode() {
+            document.getElementById('gameClear').style.display = 'none';
+            initGame('boss');
+        }
+
+        // ボスモードスタート関数（タイトル画面から）
+        function startBossModeFromTitle() {
+            document.getElementById('titleScreen').classList.add('hidden');
+            initGame('boss');
 
             // 初回起動時にモバイルコントロール初期化
             if (!isTouchDevice) {
